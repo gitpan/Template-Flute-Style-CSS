@@ -5,10 +5,12 @@ use warnings;
 
 use CSS::Tiny;
 
+use Template::Flute::Utils;
+
 # names for the sides of a box, as in border-top, border-right, ...
 use constant SIDE_NAMES => qw/top right bottom left/;
 
-our $VERSION = '0.0001';
+our $VERSION = '0.0002';
 
 =head1 NAME
 
@@ -16,7 +18,7 @@ Template::Flute::Style::CSS - CSS parser class for Template::Flute
 
 =head1 VERSION
 
-Version 0.0001
+Version 0.0002
 
 =head1 CONSTRUCTOR
 
@@ -52,13 +54,25 @@ sub new {
 
 sub _initialize {
 	my ($self) = @_;
-	my (@ret, $css);
+	my (@ret, $css_file, $css);
 
 	# create CSS::Tiny object
 	$css = new CSS::Tiny;
 
+	# search for external stylesheets
+	for my $ext ($self->{template}->root()->get_xpath(qq{//link})) {
+		if ($ext->att('rel') eq 'stylesheet'
+			&& $ext->att('type') eq 'text/css') {
+			$css_file = Template::Flute::Utils::derive_filename
+				($self->{template}->file, $ext->att('href'), 1);
+			unless ($css->read($css_file)) {
+				die "Failed to parse CSS file $css_file: " . $css->errstr() . "\n";
+			}
+		}
+	}
+	
 	# search for inline stylesheets
-	@ret = $self->{template}->root()->get_xpath(qq{//style});
+	push (@ret, $self->{template}->root()->get_xpath(qq{//style}));
 	
 	for (@ret) {
 		unless ($css->read_string($_->text())) {
@@ -354,6 +368,11 @@ sub _build_properties {
 	# line-height
 	if ($props_css->{'line-height'}) {
 		$propref->{'line_height'} = $props_css->{'line-height'};
+	}
+
+	# list-style
+	if ($props_css->{'list-style'}) {
+		$propref->{'list_style'} = $props_css->{'list-style'};
 	}
 	
 	# margin

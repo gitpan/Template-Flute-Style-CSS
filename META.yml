@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Template-Flute-Style-CSS
-version:            0.0001
+version:            0.0002
 abstract:           CSS parser class for Template::Flute
 author:
     - Stefan Hornburg (Racke) <racke@linuxia.de>
@@ -11,13 +11,14 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
-    CSS::Tiny:   0
-    Test::More:  0
+    CSS::Tiny:        0
+    Template::Flute:  0.0005
+    Test::More:       0
 no_index:
     directory:
         - t
         - inc
-generated_by:       ExtUtils::MakeMaker version 6.55_02
+generated_by:       ExtUtils::MakeMaker version 6.56
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4
