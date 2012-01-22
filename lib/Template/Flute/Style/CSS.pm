@@ -10,7 +10,27 @@ use Template::Flute::Utils;
 # names for the sides of a box, as in border-top, border-right, ...
 use constant SIDE_NAMES => qw/top right bottom left/;
 
-our $VERSION = '0.0003';
+our $VERSION = '0.0024';
+
+# block elements
+my %block_elements = (address => 1,
+		      blockquote => 1,
+		      div => 1,
+		      dl => 1,
+		      fieldset => 1,
+		      form => 1,
+		      h1 => 1,
+		      h2 => 1,
+		      h3 => 1,
+		      h4 => 1,
+		      h5 => 1,
+		      h6 => 1,
+		      noscript => 1,
+		      ol => 1,
+		      p => 1,
+		      pre => 1,
+		      table => 1,
+		      ul => 1);
 
 =head1 NAME
 
@@ -18,7 +38,7 @@ Template::Flute::Style::CSS - CSS parser class for Template::Flute
 
 =head1 VERSION
 
-Version 0.0003
+Version 0.0024
 
 =head1 CONSTRUCTOR
 
@@ -31,6 +51,11 @@ Create Template::Flute::Style::CSS object with the following parameters:
 =item template
 
 L<Template::Flute::HTML> object.
+
+=item prepend_directory
+
+Directory which is prepended to the CSS path when the
+template doesn't reside in a file.
 
 =back
 
@@ -63,8 +88,18 @@ sub _initialize {
 	for my $ext ($self->{template}->root()->get_xpath(qq{//link})) {
 		if ($ext->att('rel') eq 'stylesheet'
 			&& $ext->att('type') eq 'text/css') {
-			$css_file = Template::Flute::Utils::derive_filename
-				($self->{template}->file, $ext->att('href'), 1);
+			if ($self->{template}->file) {
+				$css_file = Template::Flute::Utils::derive_filename
+					($self->{template}->file, $ext->att('href'), 1);
+			}
+			elsif ($self->{prepend_directory}) {
+				$css_file = join('/', $self->{prepend_directory},
+								 $ext->att('href'));
+			}
+			else {
+				$css_file = $ext->att('href');
+			}
+			
 			unless ($css->read($css_file)) {
 				die "Failed to parse CSS file $css_file: " . $css->errstr() . "\n";
 			}
@@ -129,6 +164,21 @@ sub properties {
 
 	if (defined $parms{tag} && $parms{tag} =~ /\S/) {
 		@tags = split(/\s+/, $parms{tag});
+
+		if (@tags) {
+		    for my $tag (@tags) {
+			$self->_build_properties($props, $tag);
+
+			if (($parms{tag} eq 'strong' || $parms{tag} eq 'b')
+			    && ! exists $props->{font}->{weight}) {
+			    $props->{font}->{weight} = 'bold';
+			}
+		}
+		    
+		    if (! $props->{display} && exists $block_elements{$tags[0]} ) {
+			$props->{display} = 'block';
+		    }	
+		}
 	}
 	
 	if (defined $parms{id} && $parms{id} =~ /\S/) {
@@ -150,21 +200,14 @@ sub properties {
 		}
 	}
 
-	if (@tags) {
-		for my $tag (@tags) {
-			$self->_build_properties($props, $tag);
-
-			if (($parms{tag} eq 'strong' || $parms{tag} eq 'b')
-				&& ! exists $props->{font}->{weight}) {
-				$props->{font}->{weight} = 'bold';
-			}
-		}
-	}
-
 	if (defined $parms{selector} && $parms{selector} =~ /\S/) {
 		$self->_build_properties($props, $parms{selector});
 	}
-	
+
+	$props->{display} ||= 'inline';
+
+	$self->_expand_properties($props);
+
 	return $props;
 }
 
@@ -320,11 +363,6 @@ sub _build_properties {
 				style => $style,
 				color => $color};
 		}
-		else {
-			for my $p (qw/width style color/) {
-				$propref->{border}->{$s}->{$p} ||=  $propref->{border}->{all}->{$p};
-			}
-		}
 
 		for my $p (qw/width style color/) {
 			if ($value = $props_css->{"border-$s-$p"}) {
@@ -344,6 +382,11 @@ sub _build_properties {
 	# color
 	if ($props_css->{color}) {
 		$propref->{color} = $props_css->{color};
+	}
+
+	# display
+	if ($props_css->{display}) {
+	    $propref->{display} = $props_css->{display};
 	}
 
 	# float
@@ -418,16 +461,41 @@ sub _build_properties {
 	if ($props_css->{'text-align'}) {
 		$propref->{text}->{align} = $props_css->{'text-align'};
 	}
+	if ($props_css->{'text-decoration'}) {
+		$propref->{text}->{decoration} = $props_css->{'text-decoration'};
+	}
 	if ($props_css->{'text-transform'}) {
 		$propref->{text}->{transform} = $props_css->{'text-transform'};
 	}
 	
+	# transform
+	for (qw/transform -webkit-transform -moz-transform -o-transform -ms-transform/) {
+            if ($value = $props_css->{$_}) {
+		if ($value =~ s/^\s*rotate\((\d+)\s*deg\)\s*$/$1/) {
+		    $propref->{rotate} = $value;
+		    last;
+                }
+            }
+        }
+
 	# width
 	if ($props_css->{'width'}) {
 		$propref->{width} = $props_css->{width};
 	}
 	
 	return $propref;
+}
+
+sub _expand_properties {
+    my ($self, $props) = @_;
+
+    # border sides		
+    for my $s (SIDE_NAMES) {
+	for my $p (qw/width style color/) {
+	    next if exists $props->{border}->{$s}->{$p};
+	    $props->{border}->{$s}->{$p} =  $props->{border}->{all}->{$p};    
+	}
+    }
 }
 
 sub inherit {
@@ -523,7 +591,7 @@ L<http://search.cpan.org/dist/Template-Flute-Style-CSS/>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2010-2011 Stefan Hornburg (Racke) <racke@linuxia.de>.
+Copyright 2010-2012 Stefan Hornburg (Racke) <racke@linuxia.de>.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
