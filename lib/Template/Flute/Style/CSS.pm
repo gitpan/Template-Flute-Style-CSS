@@ -10,7 +10,7 @@ use Template::Flute::Utils;
 # names for the sides of a box, as in border-top, border-right, ...
 use constant SIDE_NAMES => qw/top right bottom left/;
 
-our $VERSION = '0.0024';
+our $VERSION = '0.0025';
 
 # block elements
 my %block_elements = (address => 1,
@@ -38,7 +38,7 @@ Template::Flute::Style::CSS - CSS parser class for Template::Flute
 
 =head1 VERSION
 
-Version 0.0024
+Version 0.0025
 
 =head1 CONSTRUCTOR
 
@@ -424,7 +424,7 @@ sub _build_properties {
 	}
 	
 	# margin
-	if ($props_css->{'margin'}) {
+	if (exists $props_css->{'margin'}) {
 		$sides = $self->_by_sides($props_css->{'margin'});
 
 		for (SIDE_NAMES) {
@@ -470,11 +470,42 @@ sub _build_properties {
 	
 	# transform
 	for (qw/transform -webkit-transform -moz-transform -o-transform -ms-transform/) {
-            if ($value = $props_css->{$_}) {
-		if ($value =~ s/^\s*rotate\((\d+)\s*deg\)\s*$/$1/) {
-		    $propref->{rotate} = $value;
-		    last;
-                }
+	    my ($prop_value, @frags);
+
+            if ($prop_value = $props_css->{$_}) {
+		@frags = split(/\s+/, $prop_value);
+
+		for my $value (@frags) {
+		    if ($value =~ s/^\s*rotate\(((-?)\d+(\.\d+)?)\s*deg\)\s*$/$1/) {
+			if ($2) {
+			    # negative angle
+			    $propref->{rotate} = 360 + $value;
+			}
+			else {
+			    $propref->{rotate} = $value;
+			}
+		    }
+		    elsif ($value =~ /translate([xy])?\((.*?)(,(.*?))?\)/i) {
+			if (lc($1) eq 'x') {
+			    # translateX value
+			    $propref->{translate}->{x} = $2;
+			}
+			elsif (lc($1) eq 'y') {
+			    # translateY value
+			    $propref->{translate}->{y} = $2;
+			}
+			else {
+			    # translate value (x and optionally y)
+			    $propref->{translate}->{x} = $2;
+			    
+			    if ($4) {
+				$propref->{translate}->{y} = $4;
+			    }
+			}
+		    }
+		}
+
+		last;
             }
         }
 
