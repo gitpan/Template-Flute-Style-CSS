@@ -10,7 +10,7 @@ use Template::Flute::Utils;
 # names for the sides of a box, as in border-top, border-right, ...
 use constant SIDE_NAMES => qw/top right bottom left/;
 
-our $VERSION = '0.0026';
+our $VERSION = '0.0030';
 
 # block elements
 my %block_elements = (address => 1,
@@ -38,7 +38,7 @@ Template::Flute::Style::CSS - CSS parser class for Template::Flute
 
 =head1 VERSION
 
-Version 0.0026
+Version 0.0030
 
 =head1 CONSTRUCTOR
 
@@ -402,7 +402,10 @@ sub _build_properties {
 		$propref->{font}->{size} = $props_css->{'font-size'};
 	}
 	if ($props_css->{'font-family'}) {
-		$propref->{font}->{family} = $props_css->{'font-family'};
+	    $propref->{font}->{family} = ucfirst(lc($props_css->{'font-family'}));
+	}
+	if ($props_css->{'font-style'}) {
+	    $propref->{font}->{style} = ucfirst(lc($props_css->{'font-style'}));
 	}
 	if ($props_css->{'font-weight'}) {
 		$propref->{font}->{weight} = $props_css->{'font-weight'};
@@ -413,6 +416,11 @@ sub _build_properties {
 		$propref->{height} = $props_css->{height};
 	}
 
+    # min-height
+	if ($props_css->{'min-height'}) {
+		$propref->{min_height} = $props_css->{'min-height'};
+	}
+    
 	# line-height
 	if ($props_css->{'line-height'}) {
 		$propref->{'line_height'} = $props_css->{'line-height'};
@@ -518,7 +526,12 @@ sub _build_properties {
 	if ($props_css->{'width'}) {
 		$propref->{width} = $props_css->{width};
 	}
-	
+
+    # min-width
+    if ($props_css->{'min-width'}) {
+        $propref->{min_width} = $props_css->{'min-width'};
+    }
+    
 	return $propref;
 }
 
