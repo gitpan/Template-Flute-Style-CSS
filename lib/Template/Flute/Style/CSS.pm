@@ -10,7 +10,10 @@ use Template::Flute::Utils;
 # names for the sides of a box, as in border-top, border-right, ...
 use constant SIDE_NAMES => qw/top right bottom left/;
 
-our $VERSION = '0.0030';
+# default font size - used for the calucation of 1em
+use constant FONT_SIZE => '12';
+
+our $VERSION = '0.0031';
 
 # block elements
 my %block_elements = (address => 1,
@@ -38,7 +41,7 @@ Template::Flute::Style::CSS - CSS parser class for Template::Flute
 
 =head1 VERSION
 
-Version 0.0030
+Version 0.0031
 
 =head1 CONSTRUCTOR
 
@@ -160,7 +163,13 @@ sub properties {
 	}
 	
 	# defaults
-	$props->{color} = 'black';
+    unless (exists $props->{color}) {
+        $props->{color} = 'black';
+    }
+    
+    unless (exists $props->{font}->{size}) {
+        $props->{font}->{size} = FONT_SIZE;
+    }
 
 	if (defined $parms{tag} && $parms{tag} =~ /\S/) {
 		@tags = split(/\s+/, $parms{tag});
@@ -174,7 +183,20 @@ sub properties {
 			    $props->{font}->{weight} = 'bold';
 			}
 		}
-		    
+
+            if ($parms{tag} eq 'p') {
+                # add automagic margin of 1em
+                for (qw/top bottom/) {
+                    unless ($props->{margin}->{$_}) {
+                        $props->{margin}->{$_} = $props->{font}->{size};
+
+                        if ($props->{font}->{size} =~ /^[0-9.]+$/) {
+                            $props->{margin}->{$_} .= 'pt';
+                        }
+                    }
+                }
+            }
+            
 		    if (! $props->{display} && exists $block_elements{$tags[0]} ) {
 			$props->{display} = 'block';
 		    }	
