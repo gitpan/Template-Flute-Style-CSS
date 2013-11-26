@@ -14,7 +14,13 @@ WriteMakefile(
     PREREQ_PM => {
         'Test::More' => 0,
         'CSS::Tiny' => 0,
-        'Template::Flute' => 0.0005,
+        'Template::Flute' => 0.0081,
+    },
+    META_MERGE        => {
+        resources => {
+            repository  => 'https://github.com/racke/Template-Flute.git',
+            bugtracker  => 'https://github.com/racke/Template-Flute/issues',
+        },
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'Template-Flute-Style-CSS*' },
